@@ -241,6 +241,10 @@ tr:last-child td{border-bottom:none}
       <div class="fg"><label>Nume complet</label><input type="text" id="ni" placeholder="ex: Ion Popescu" autocomplete="name"><div class="errt">Te rugam introdu numele</div></div>
       <div class="fg"><label>Email</label><input type="email" id="ei" placeholder="ex: ion@email.com" autocomplete="email"><div class="errt">Introdu o adresa de email valida</div></div>
       <div class="fg"><label>Telefon</label><input type="tel" id="phi" placeholder="ex: 0722 123 456" autocomplete="tel"><div class="errt">Introdu un numar de telefon valid</div></div>
+      <!-- Honeypot: invisible to humans, bots fill it -->
+      <div style="position:absolute;left:-9999px;top:-9999px;opacity:0;height:0;overflow:hidden;" aria-hidden="true">
+        <label>Website</label><input type="text" id="hpot" name="website" tabindex="-1" autocomplete="off">
+      </div>
       <button class="sbtn" id="spinBtn" onclick="handleSpin()">&#127808; Invarte Roata!</button>
       <div class="prizes-mini">
         <div class="pm-tag"><span class="d" style="background:#6bb33e"></span>1 Doza</div>
@@ -314,7 +318,7 @@ tr:last-child td{border-bottom:none}
 <script>
 // ===== CONFIG =====
 const ADMIN_PASSWORD = 'tonicblend2024'; // SCHIMBA PAROLA AICI
-const GURL = 'https://script.google.com/macros/s/AKfycbxvjQ2GP8k6OVk2de0pgMWWHp615xunS1nzNNHv-QzOH6OKo_PzclOIMdEJP2yj0Ey0QA/exec';
+const GURL = 'PUNE_AICI_URL_UL_TAU';
 
 const PRIZES = [
   {label:'1 Doza Kombucha', weight:60},
@@ -371,6 +375,10 @@ const cv=document.getElementById('wc');
   }
 })();
 
+// ===== ANTI-BOT =====
+var pageLoadTime = Date.now();
+var MIN_FILL_TIME = 3000; // minimum 3 seconds to fill form (bots are instant)
+
 // ===== FORM =====
 function validate(){
   const n=document.getElementById('ni'),e=document.getElementById('ei'),p=document.getElementById('phi');let ok=true;
@@ -379,6 +387,15 @@ function validate(){
   const pc=p.value.replace(/[\s\-().]/g,'');
   if(pc.length<7||!/^\+?\d+$/.test(pc)){p.classList.add('err');ok=false}else p.classList.remove('err');
   return ok;
+}
+
+function isBot(){
+  // Check 1: honeypot field filled (only bots fill invisible fields)
+  var hp=document.getElementById('hpot');
+  if(hp && hp.value.length>0) return true;
+  // Check 2: form submitted too fast (less than 3 seconds after page load)
+  if(Date.now()-pageLoadTime < MIN_FILL_TIME) return true;
+  return false;
 }
 function getWP(){
   const t=PRIZES.reduce((s,p)=>s+p.weight,0);let r=Math.random()*t;
@@ -389,6 +406,7 @@ function getWP(){
 function handleSpin(){
   if(spinning)return;
   if(!validate())return;
+  var botDetected=isBot();
   spinning=true;document.getElementById('spinBtn').disabled=true;
   var pi=getWP(),so=PRIZE_TO_SLICES[pi],vs=so[Math.floor(Math.random()*so.length)];
   var sa=360/SLICES.length,tc=vs*sa+sa/2;
@@ -403,7 +421,10 @@ function handleSpin(){
     var ph=document.getElementById('phi').value.trim();
     var pr=PRIZES[pi].label;
     var entry={name:nm,email:em,phone:ph,prize:pr,date:new Date().toLocaleString('ro-RO')};
-    entries.push(entry);updateET();sendGS(entry);
+    // Only save and send if NOT a bot
+    if(!botDetected){
+      entries.push(entry);updateET();sendGS(entry);
+    }
     document.getElementById('prizeName').textContent=pr;
     var emo=document.getElementById('rEmoji'),msg=document.getElementById('rMsg');
     if(pi===2){emo.innerHTML='&#127881;&#127870;&#127881;';msg.textContent='JACKPOT! Ai castigat 5 doze Tonic-Blend Kombucha! Vei fi contactat pentru revendicare.';}
@@ -411,6 +432,8 @@ function handleSpin(){
     else{emo.innerHTML='&#127873;';msg.textContent='Ai castigat 20% reducere pe tonicblend.com! Codul de discount va fi trimis pe email.';}
     document.getElementById('resultOverlay').classList.add('active');launchConf();
     document.getElementById('ni').value='';document.getElementById('ei').value='';document.getElementById('phi').value='';
+    // Clear honeypot too
+    var hp=document.getElementById('hpot');if(hp)hp.value='';
     wheelEl.style.transition='none';spinning=false;document.getElementById('spinBtn').disabled=false;
   },5400);
 }
